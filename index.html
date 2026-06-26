@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Chiller Check">
+    <meta name="theme-color" content="#0f172a">
+    <link rel="manifest" href="./manifest.json">
+    <link rel="apple-touch-icon" href="./icon.svg">
+    <title>Chiller Pocket Check</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #0f172a;
+            color: #f1f5f9;
+            padding-bottom: 60px;
+            /* safe area for iPhone notch */
+            padding-top: env(safe-area-inset-top);
+            padding-left: env(safe-area-inset-left);
+            padding-right: env(safe-area-inset-right);
+        }
+        .header {
+            background-color: #1e293b;
+            padding: 16px;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            border-bottom: 1px solid #334155;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
+        }
+        .header h1 { font-size: 1.2rem; font-weight: bold; color: #38bdf8; }
+        .version { font-size: 0.7rem; background-color: #334155; padding: 4px 8px; border-radius: 4px; color: #94a3b8; }
+        .container { max-width: 450px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+        .card { background-color: #1e293b; border: 1px solid #334155; padding: 16px; border-radius: 12px; display: flex; flex-direction: column; gap: 12px; }
+        .card-title-elect { font-size: 0.95rem; font-weight: bold; color: #fbbf24; border-bottom: 1px solid #334155; padding-bottom: 6px; }
+        .card-title-evap  { font-size: 0.95rem; font-weight: bold; color: #38bdf8;  border-bottom: 1px solid #334155; padding-bottom: 6px; }
+        .card-title-cond  { font-size: 0.95rem; font-weight: bold; color: #f87171;  border-bottom: 1px solid #334155; padding-bottom: 6px; }
+
+        .unit-card { background-color: #1e293b; border: 1px solid #334155; padding: 14px 16px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+        .unit-card-label { font-size: 0.85rem; font-weight: 600; color: #94a3b8; }
+        .seg { display: flex; background-color: #0f172a; border: 1px solid #334155; border-radius: 8px; overflow: hidden; }
+        .seg-btn { border: none; background: transparent; color: #64748b; font-size: 0.9rem; font-weight: bold; padding: 10px 24px; cursor: pointer; -webkit-appearance: none; touch-action: manipulation; transition: background 0.15s, color 0.15s; }
+        .seg-btn.on-c { background-color: #0284c7; color: #fff; }
+        .seg-btn.on-f { background-color: #7c3aed; color: #fff; }
+
+        label { display: block; font-size: 0.75rem; font-weight: 600; color: #94a3b8; margin-bottom: 4px; }
+        .input-wrap { position: relative; }
+        .input-wrap input[type="number"],
+        input.plain[type="number"] {
+            width: 100%;
+            background-color: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 12px 44px 12px 12px;
+            color: white;
+            font-weight: bold;
+            font-size: 1rem;
+            outline: none;
+            text-align: center;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        input.plain[type="number"] { padding-right: 12px; }
+        .input-wrap input[type="number"]:focus,
+        input.plain[type="number"]:focus { border-color: #38bdf8; }
+        .unit-tag { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 0.85rem; font-weight: bold; pointer-events: none; }
+        .unit-tag.c { color: #38bdf8; }
+        .unit-tag.f { color: #a78bfa; }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .btn-submit {
+            width: 100%; background: linear-gradient(to right, #0ea5e9, #2563eb);
+            border: none; color: white; font-weight: bold; padding: 18px;
+            border-radius: 12px; font-size: 1rem; cursor: pointer;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3);
+            -webkit-appearance: none; appearance: none; touch-action: manipulation; display: block;
+        }
+        .btn-submit:active { opacity: 0.85; transform: scale(0.98); }
+
+        .hidden { display: none !important; }
+        .result-title-area { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 8px; }
+        .badge        { padding: 4px 12px; border-radius: 9999px; font-size: 0.75rem; font-weight: bold; }
+        .badge-green  { background-color: #10b981; color: #064e3b; }
+        .badge-yellow { background-color: #f59e0b; color: #451a03; }
+        .res-box  { background-color: #0f172a; border: 1px solid #334155; padding: 12px; border-radius: 8px; }
+        .res-box label { font-size: 0.7rem; }
+        .res-val  { display: block; font-size: 1.05rem; font-weight: bold; color: white; margin-top: 2px; }
+        .approach-row { display: flex; justify-content: space-between; align-items: center; background-color: #0f172a; border: 1px solid #334155; padding: 12px; border-radius: 8px; }
+        .app-badge  { font-weight: bold; padding: 2px 10px; border-radius: 4px; font-size: 0.85rem; }
+        .app-green  { background-color: rgba(16,185,129,0.2); color: #34d399; border: 1px solid #059669; }
+        .app-yellow { background-color: rgba(245,158,11,0.2); color: #fbbf24; border: 1px solid #d97706; }
+        .app-red    { background-color: rgba(239,68,68,0.2);  color: #f87171; border: 1px solid #dc2626; }
+        .insight-box { background-color: #0f172a; border-left: 4px solid #38bdf8; padding: 12px; border-radius: 4px; }
+        .insight-p   { font-size: 0.85rem; color: #cbd5e1; line-height: 1.6; white-space: pre-line; }
+        .note { font-size: 0.72rem; color: #64748b; }
+
+        /* install banner */
+        #installBanner {
+            background-color: #0c4a6e;
+            border: 1px solid #0284c7;
+            border-radius: 12px;
+            padding: 12px 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.8rem;
+            color: #bae6fd;
+            line-height: 1.4;
+        }
+        #installBanner span { font-size: 1.4rem; flex-shrink: 0; }
+        #closeBanner { margin-left: auto; background: none; border: none; color: #7dd3fc; font-size: 1.1rem; cursor: pointer; padding: 0 4px; flex-shrink: 0; touch-action: manipulation; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>❄️ Chiller Pocket Check</h1>
+    <span class="version">v1.4 PWA</span>
+</div>
+
+<div class="container">
+
+    <!-- Install hint (iOS) -->
+    <div id="installBanner">
+        <span>📲</span>
+        <div>กด <strong>แชร์ → Add to Home Screen</strong> เพื่อติดตั้งเป็น App บน iPad/iPhone ใช้งาน offline ได้ทันที</div>
+        <button id="closeBanner" type="button">✕</button>
+    </div>
+
+    <div class="unit-card">
+        <span class="unit-card-label">หน่วยอุณหภูมิ</span>
+        <div class="seg">
+            <button type="button" class="seg-btn on-c" id="btn-c">°C</button>
+            <button type="button" class="seg-btn"      id="btn-f">°F</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title-elect">⚡ หมวดไฟฟ้าและภาระทำงาน</div>
+        <div>
+            <label for="spec_tr">สเปคตันความเย็นของเครื่อง (Spec TR)</label>
+            <input class="plain" type="number" id="spec_tr" value="600" min="1" inputmode="decimal">
+        </div>
+        <div class="grid-2">
+            <div>
+                <label for="voltage">แรงดันไฟฟ้า (V)</label>
+                <input class="plain" type="number" id="voltage" value="380" min="100" inputmode="decimal">
+            </div>
+            <div>
+                <label for="pf_input">Power Factor</label>
+                <input class="plain" type="number" id="pf_input" step="0.01" min="0.5" max="1.0" placeholder="auto" inputmode="decimal">
+            </div>
+        </div>
+        <div class="grid-2">
+            <div>
+                <label for="pct_rla">เปอร์เซ็นต์กระแส (% RLA)</label>
+                <input class="plain" type="number" id="pct_rla" step="0.1" value="75" min="1" max="120" inputmode="decimal">
+            </div>
+            <div>
+                <label for="current_amp">กระแสไฟฟ้าจริง (Amp)</label>
+                <input class="plain" type="number" id="current_amp" step="0.1" value="150" min="0" inputmode="decimal">
+            </div>
+        </div>
+        <p class="note">* kW = √3 × V × A × PF | PF auto: &gt;85%→0.88, &gt;60%→0.83, อื่น→0.75</p>
+    </div>
+
+    <div class="card">
+        <div class="card-title-evap">🔵 ฝั่งระบบน้ำเย็น (Evaporator)</div>
+        <div class="grid-2">
+            <div>
+                <label for="chws_t">น้ำเย็นออกตู้ (CHWS T)</label>
+                <div class="input-wrap">
+                    <input type="number" id="chws_t" step="0.1" value="7.0" inputmode="decimal">
+                    <span class="unit-tag c" id="tag-chws_t">°C</span>
+                </div>
+            </div>
+            <div>
+                <label for="evap_sat_t">น้ำยาฝั่งระเหย (Evap Sat T)</label>
+                <div class="input-wrap">
+                    <input type="number" id="evap_sat_t" step="0.1" value="5.5" inputmode="decimal">
+                    <span class="unit-tag c" id="tag-evap_sat_t">°C</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title-cond">🔴 ฝั่งระบายความร้อน (Condenser)</div>
+        <div class="grid-2">
+            <div>
+                <label for="cws_t">น้ำออกคอนเดนเซอร์ (CWS T)</label>
+                <div class="input-wrap">
+                    <input type="number" id="cws_t" step="0.1" value="35.5" inputmode="decimal">
+                    <span class="unit-tag c" id="tag-cws_t">°C</span>
+                </div>
+            </div>
+            <div>
+                <label for="cond_sat_t">น้ำยาฝั่งควบแน่น (Cond Sat T)</label>
+                <div class="input-wrap">
+                    <input type="number" id="cond_sat_t" step="0.1" value="37.0" inputmode="decimal">
+                    <span class="unit-tag c" id="tag-cond_sat_t">°C</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <button type="button" class="btn-submit" id="analyzeBtn">📊 ประมวลผลและวิเคราะห์ด่วน</button>
+
+    <div id="resultCard" class="card hidden">
+        <div class="result-title-area">
+            <h2 style="font-size:1.1rem; font-weight:bold;">ผลการวิเคราะห์ระบบ</h2>
+            <span id="statusBadge" class="badge"></span>
+        </div>
+        <div class="grid-2">
+            <div class="res-box"><label>ภาระทำความเย็นจริง</label><span id="res_actual_tr" class="res-val">-</span></div>
+            <div class="res-box"><label>กำลังไฟฟ้าโดยประมาณ</label><span id="res_kw" class="res-val">-</span></div>
+            <div class="res-box"><label>ประสิทธิภาพพลังงาน</label><span id="res_kw_ton" class="res-val">-</span></div>
+            <div class="res-box"><label>พิกัดกระแสเต็มโหลด (FLA)</label><span id="res_fla" class="res-val">-</span></div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+            <div class="approach-row">
+                <span style="font-size:0.85rem; color:#cbd5e1;">Evaporator Approach Temp</span>
+                <span id="res_evap_app" class="app-badge">-</span>
+            </div>
+            <div class="approach-row">
+                <span style="font-size:0.85rem; color:#cbd5e1;">Condenser Approach Temp</span>
+                <span id="res_cond_app" class="app-badge">-</span>
+            </div>
+        </div>
+        <div class="insight-box">
+            <span style="display:block; font-size:0.75rem; font-weight:bold; color:#38bdf8; margin-bottom:4px;">🤖 สรุปอาการวิศวกรรม:</span>
+            <p id="ai_insight" class="insight-p"></p>
+        </div>
+    </div>
+
+</div>
+
+<script>
+(function () {
+    'use strict';
+
+    var TEMP_IDS = ['chws_t', 'evap_sat_t', 'cws_t', 'cond_sat_t'];
+    var currentUnit = 'C';
+
+    function toC(v) { return (v - 32) / 1.8; }
+    function toF(v) { return v * 1.8 + 32; }
+    function el(id) { return document.getElementById(id); }
+
+    function setUnit(newUnit) {
+        if (currentUnit === newUnit) return;
+        TEMP_IDS.forEach(function (id) {
+            var input = el(id);
+            var v = parseFloat(input.value);
+            if (!isNaN(v)) {
+                input.value = (newUnit === 'F') ? toF(v).toFixed(1) : toC(v).toFixed(1);
+            }
+            var tag = el('tag-' + id);
+            tag.textContent = '°' + newUnit;
+            tag.className   = 'unit-tag ' + newUnit.toLowerCase();
+        });
+        el('btn-c').className = 'seg-btn' + (newUnit === 'C' ? ' on-c' : '');
+        el('btn-f').className = 'seg-btn' + (newUnit === 'F' ? ' on-f' : '');
+        currentUnit = newUnit;
+    }
+
+    function processDiagnostics() {
+        var specTr     = parseFloat(el('spec_tr').value);
+        var pctRla     = parseFloat(el('pct_rla').value);
+        var currentAmp = parseFloat(el('current_amp').value);
+        var voltage    = parseFloat(el('voltage').value) || 380;
+        var pfInput    = parseFloat(el('pf_input').value);
+
+        var rawTemps = TEMP_IDS.map(function (id) { return parseFloat(el(id).value); });
+        var allVals  = [specTr, pctRla, currentAmp].concat(rawTemps);
+        for (var i = 0; i < allVals.length; i++) {
+            if (isNaN(allVals[i])) { alert('กรุณากรอกข้อมูลให้ครบถ้วนครับ'); return; }
+        }
+
+        var tempsC   = rawTemps.map(function (v) { return currentUnit === 'F' ? toC(v) : v; });
+        var chwsC    = tempsC[0], evapSatC = tempsC[1], cwsC = tempsC[2], condSatC = tempsC[3];
+
+        var actualTr      = specTr * (pctRla / 100);
+        var calculatedFla = currentAmp / (pctRla / 100);
+        var pf = (!isNaN(pfInput) && pfInput >= 0.5 && pfInput <= 1.0)
+            ? pfInput : (pctRla > 85 ? 0.88 : pctRla > 60 ? 0.83 : 0.75);
+        var kw       = (Math.sqrt(3) * voltage * currentAmp * pf) / 1000;
+        var kwPerTon = kw / actualTr;
+        var evapAppC = chwsC - evapSatC;
+        var condAppC = condSatC - cwsC;
+
+        el('resultCard').classList.remove('hidden');
+        el('res_actual_tr').textContent = actualTr.toFixed(1)      + ' TR';
+        el('res_kw').textContent        = kw.toFixed(1)            + ' kW';
+        el('res_kw_ton').textContent    = kwPerTon.toFixed(2)      + ' kW/Ton';
+        el('res_fla').textContent       = calculatedFla.toFixed(1) + ' A';
+        el('res_evap_app').textContent  = evapAppC.toFixed(2)      + ' °C';
+        el('res_cond_app').textContent  = condAppC.toFixed(2)      + ' °C';
+
+        var isWarning = false;
+        var msgs = [];
+
+        if (condAppC >= 2.2) {
+            el('res_cond_app').className = 'app-badge app-red';
+            msgs.push('⚠️ คอนเดนเซอร์มีตะกรันหินปูนสะสมในท่อทองแดง ระบายความร้อนลดลง แนะนำล้างแยงท่อ');
+            isWarning = true;
+        } else { el('res_cond_app').className = 'app-badge app-green'; }
+
+        if (evapAppC >= 1.8) {
+            el('res_evap_app').className = 'app-badge app-yellow';
+            msgs.push('⚠️ อีวาปอเรเตอร์ค่า Approach สูง อาจมีคราบน้ำมันเคลือบผิวท่อ หรือน้ำยาแอร์เริ่มขาดระบบ');
+            isWarning = true;
+        } else { el('res_evap_app').className = 'app-badge app-green'; }
+
+        if (kwPerTon > 0.8) {
+            msgs.push('⚠️ ประสิทธิภาพ kW/Ton สูงกว่าเกณฑ์ดี (>0.80) ควรตรวจสอบภาระระบายความร้อนและสภาพ HX');
+            isWarning = true;
+        }
+        if (pctRla > 100) {
+            msgs.push('⚠️ กระแสเกิน 100% RLA เครื่องทำงานหนักเกินพิกัด ควรลด Load ด่วน');
+            isWarning = true;
+        }
+
+        var badge = el('statusBadge');
+        if (isWarning) {
+            badge.textContent = '⚠️ เฝ้าระวัง'; badge.className = 'badge badge-yellow';
+        } else {
+            badge.textContent = '🟢 ปกติ'; badge.className = 'badge badge-green';
+            msgs.push('เครื่องทำงานสอดคล้องกันสมบูรณ์แบบ ทั้งสัดส่วนไฟฟ้าและการแลกเปลี่ยนความร้อน คอยล์สะอาดดีมากครับ');
+        }
+        el('ai_insight').textContent = msgs.join('\n\n');
+        el('resultCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function addTap(id, fn) {
+        var e = el(id);
+        e.addEventListener('touchend', function (ev) { ev.preventDefault(); fn(); });
+        e.addEventListener('click', fn);
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        addTap('btn-c', function () { setUnit('C'); });
+        addTap('btn-f', function () { setUnit('F'); });
+        addTap('analyzeBtn', processDiagnostics);
+        addTap('closeBanner', function () { el('installBanner').style.display = 'none'; });
+
+        // hide banner if already installed as PWA
+        if (window.navigator.standalone) { el('installBanner').style.display = 'none'; }
+
+        // register service worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./sw.js').catch(function () {});
+        }
+    });
+})();
+</script>
+</body>
+</html>
