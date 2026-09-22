@@ -1,18 +1,11 @@
 {
   "name": "Chiller Pocket Check",
-  "short_name": "Chiller Check",
+  "short_name": "Chiller",
   "description": "วิเคราะห์ระบบ Chiller หน้างาน",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#0f172a",
+  "background_color": "#060d1a",
+  "theme_color": "#060d1a",
   "orientation": "portrait",
-  "icons": [
-    {
-      "src": "icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
-    }
-  ]
+  "icons": [{"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
 }
